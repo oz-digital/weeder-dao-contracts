@@ -56,5 +56,7 @@ interface IMarket {
 
     function accrueTokenDividends(address _token) external;
 
+    function accrueUserDividends(address _user) external;
+
     function availableTokenDividends(address _token) external view returns (uint256);
 }

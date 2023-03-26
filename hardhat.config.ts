@@ -1,3 +1,4 @@
+import 'hardhat-dependency-compiler';
 import { HardhatUserConfig } from 'hardhat/config';
 import '@nomicfoundation/hardhat-toolbox';
 import * as dotenv from 'dotenv';
@@ -13,6 +14,11 @@ const config: HardhatUserConfig = {
         runs: 200,
       },
     },
+  },
+  dependencyCompiler: {
+    paths: [
+      '@openzeppelin/contracts/token/ERC20/presets/ERC20PresetMinterPauser.sol',
+    ],
   },
   defaultNetwork: 'polygon_mumbai',
   networks: {

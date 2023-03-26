@@ -16,6 +16,7 @@ contract Market is Ownable, IMarket {
 
     mapping(uint256 => Order) public orders;
     mapping(address => bool) public tokenToWhitelistStatus;
+    address[] public availableTokens;
 
     mapping(address => Accrue) public tokenToAccrue;
     mapping(address => mapping(address => Accrue)) public userToAccrue;
@@ -44,6 +45,7 @@ contract Market is Ownable, IMarket {
 
     function addTokenToWhitelist(address _token) external override onlyOwner {
         tokenToWhitelistStatus[_token] = true;
+        availableTokens.push(_token);
 
         emit TokenAddedToWhitelist(_token);
     }
@@ -118,43 +120,38 @@ contract Market is Ownable, IMarket {
 
         order.price = _price;
         order.updatedAt = _now();
+        order.status = OrderStatus.COMPLETED;
 
         Accrue memory previous = tokenToAccrue[order.token];
         Accrue storage accrue = tokenToAccrue[order.token];
 
-        accrue.index += _price * (_now() - accrue.timestamp);
+        accrue.index += _price;
         accrue.timestamp = _now();
 
         emit OrderCompleted({ id: _id, order: order });
         emit TokenAccrueChanged({ current: accrue, previous: previous });
     }
 
-    function accrueTokenDividends(address _token) external override {
-        address user = msg.sender;
-
-        uint256 shares = weederToken.balanceOf(user);
+    function accrueUserDividends(address _user)
+        external
+        override
+    {
+        uint256 shares = weederToken.balanceOf(_user);
         uint256 supply = weederToken.totalSupply();
 
-        Accrue memory tokenAccrue = tokenToAccrue[_token];
-        Accrue memory previous = userToAccrue[user][_token];
-        Accrue storage userAccrue = userToAccrue[user][_token];
+        for (uint i = 0; i < availableTokens.length; i++) {
+            _accrueTokenDividends(_user, availableTokens[i], shares, supply);
+        }
+    }
 
-        uint256 rewards = (tokenAccrue.index - userAccrue.index) * shares / supply;
+    function accrueTokenDividends(address _token)
+        external
+        override
+    {
+        uint256 shares = weederToken.balanceOf(msg.sender);
+        uint256 supply = weederToken.totalSupply();
 
-        require(
-            IERC20(_token).transfer(user, rewards),
-            Errors.LOW_TOKEN_BALANCE
-        );
-
-        userAccrue.index = tokenAccrue.index;
-        userAccrue.timestamp = _now();
-
-        emit UserAccrueChanged({
-            user: user,
-            token: _token,
-            current: userAccrue,
-            previous: previous
-        });
+        _accrueTokenDividends(msg.sender, _token, shares, supply);
     }
 
     function availableTokenDividends(address _token) external view override returns (uint256) {
@@ -167,6 +164,34 @@ contract Market is Ownable, IMarket {
         Accrue memory userAccrue = userToAccrue[user][_token];
 
         return (tokenAccrue.index - userAccrue.index) * shares / supply;
+    }
+
+    function _accrueTokenDividends(
+        address _user,
+        address _token,
+        uint256 _shares,
+        uint256 _supply
+    ) private {
+        Accrue memory tokenAccrue = tokenToAccrue[_token];
+        Accrue memory previous = userToAccrue[_user][_token];
+        Accrue storage userAccrue = userToAccrue[_user][_token];
+
+        uint256 rewards = (tokenAccrue.index - userAccrue.index) * _shares / _supply;
+
+        require(
+            IERC20(_token).transfer(_user, rewards),
+            Errors.LOW_TOKEN_BALANCE
+        );
+
+        userAccrue.index = tokenAccrue.index;
+        userAccrue.timestamp = _now();
+
+        emit UserAccrueChanged({
+            user: _user,
+            token: _token,
+            current: userAccrue,
+            previous: previous
+        });
     }
 
     function _now() private view returns (uint32) {
