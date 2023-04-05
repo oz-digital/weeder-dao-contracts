@@ -7,7 +7,7 @@ import {
   WeederToken,
   Market,
   ERC20PresetMinterPauser,
-} from '../typechain-types';
+} from '@types';
 
 describe('Basics', () => {
   let manager: TaskManager;

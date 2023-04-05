@@ -38,6 +38,10 @@ const config: HardhatUserConfig = {
       ],
       gasPrice: 3000000000,
     },
+    polygon_mainnet: {
+      url: process.env.POLYGON_MAINNET_RPC_URL,
+      accounts: [process.env.MAINNET_PRIVATE_KEY!],
+    },
   },
   etherscan: {
     apiKey: process.env.POLYGONSCAN_API_KEY,
