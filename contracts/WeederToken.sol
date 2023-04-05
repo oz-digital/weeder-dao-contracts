@@ -46,8 +46,8 @@ contract WeederToken is
         _grantRole(UPGRADER_ROLE, msg.sender);
 
         // ERC20
-        __ERC20_init("WeederToken", "WDT");
-        __ERC20Permit_init("WeederToken");
+        __ERC20_init("Weeder Digital Token", "WDT");
+        __ERC20Permit_init("Weeder Digital Token");
         __Pausable_init();
         __ERC20Votes_init();
 
