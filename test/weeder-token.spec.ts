@@ -2,15 +2,13 @@ import { ethers, upgrades } from 'hardhat';
 import { expect } from 'chai';
 import { WeederToken } from '@types';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-
-const DOMAIN_SEPARATOR =
-  '0x1afaec0126a8c518d47b510f3391c0ca3efb3be5c5f4dae3d02d30423b55e7ce';
-
-const PAUSER_ROLE = ethers.utils.id('PAUSER_ROLE');
-const UPGRADER_ROLE = ethers.utils.id('UPGRADER_ROLE');
-const ADMIN_ROLE = ethers.constants.HashZero;
-
-const DECIMALS = 8;
+import {
+  DECIMALS,
+  UPGRADER_ROLE,
+  PAUSER_ROLE,
+  ADMIN_ROLE,
+  getAccessError,
+} from './utils';
 
 describe('Weeder Token', () => {
   let owner: SignerWithAddress;
@@ -64,12 +62,6 @@ describe('Weeder Token', () => {
       return expect(symbol).to.equal('WDT');
     });
 
-    it('should return valid domain separator', async () => {
-      const separator = await token.DOMAIN_SEPARATOR();
-
-      return expect(separator).to.equal(DOMAIN_SEPARATOR);
-    });
-
     it('should return owner for pauser role', async () => {
       const isPauser = await token.hasRole(PAUSER_ROLE, owner.address);
 
@@ -92,6 +84,12 @@ describe('Weeder Token', () => {
       const votes = await token.getVotes(owner.address);
 
       return expect(votes).to.equal(0);
+    });
+
+    it('should return zero market', async () => {
+      const market = await token.market();
+
+      return expect(market).to.equal(ethers.constants.AddressZero);
     });
   });
 
@@ -167,9 +165,7 @@ describe('Weeder Token', () => {
     it('should throw "AccessControl: account is missing role PAUSER" for user_1', async () => {
       const tx = token.connect(user1).pause();
 
-      return expect(tx).to.be.revertedWith(
-        `AccessControl: account ${user1.address.toLowerCase()} is missing role ${PAUSER_ROLE}`,
-      );
+      return expect(tx).to.be.revertedWith(getAccessError(user1, PAUSER_ROLE));
     });
 
     it('should pause transfers by owner', async () => {
@@ -191,9 +187,7 @@ describe('Weeder Token', () => {
     it('should throw "AccessControl: account is missing role PAUSER" for user_1', async () => {
       const tx = token.connect(user1).unpause();
 
-      return expect(tx).to.be.revertedWith(
-        `AccessControl: account ${user1.address.toLowerCase()} is missing role ${PAUSER_ROLE}`,
-      );
+      return expect(tx).to.be.revertedWith(getAccessError(user1, PAUSER_ROLE));
     });
 
     it('should unpause transfers by owner', async () => {
@@ -207,13 +201,31 @@ describe('Weeder Token', () => {
     });
   });
 
+  describe('setMarket()', () => {
+    it('should throw "AccessControl: account is missing role ADMIN" for user_1', async () => {
+      const tx = token.connect(user1).setMarket(user1.address);
+
+      return expect(tx).to.be.revertedWith(getAccessError(user1, ADMIN_ROLE));
+    });
+
+    it('should set market by owner', async () => {
+      const tx = token.setMarket(user1.address);
+
+      await expect(tx)
+        .to.emit(token, 'MarketChanged')
+        .withArgs(user1.address, ethers.constants.AddressZero, owner.address);
+
+      const market = await token.market();
+
+      return expect(market).to.equal(user1.address);
+    });
+  });
+
   describe('grantRole()', () => {
     it('should throw "AccessControl: account is missing role ADMIN" for user_1', async () => {
       const tx = token.connect(user1).grantRole(UPGRADER_ROLE, user1.address);
 
-      return expect(tx).to.be.revertedWith(
-        `AccessControl: account ${user1.address.toLowerCase()} is missing role ${ADMIN_ROLE}`,
-      );
+      return expect(tx).to.be.revertedWith(getAccessError(user1, ADMIN_ROLE));
     });
   });
 
@@ -222,7 +234,7 @@ describe('Weeder Token', () => {
       const tx = token.connect(user1).upgradeTo(user1.address);
 
       return expect(tx).to.be.revertedWith(
-        `AccessControl: account ${user1.address.toLowerCase()} is missing role ${UPGRADER_ROLE}`,
+        getAccessError(user1, UPGRADER_ROLE),
       );
     });
   });

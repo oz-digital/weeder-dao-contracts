@@ -12,6 +12,9 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/draft-ERC20PermitUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
 
+import "./interfaces/IMarket.sol";
+import "./interfaces/IWeederToken.sol";
+
 contract WeederToken is
     Initializable,
     ERC20Upgradeable,
@@ -19,10 +22,13 @@ contract WeederToken is
     AccessControlUpgradeable,
     ERC20PermitUpgradeable,
     ERC20VotesUpgradeable,
-    UUPSUpgradeable
+    UUPSUpgradeable,
+    IWeederToken
 {
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
+
+    address private _market;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -36,6 +42,15 @@ contract WeederToken is
         returns (uint8)
     {
         return 8;
+    }
+
+    function market()
+        external
+        view
+        override
+        returns (address)
+    {
+        return _market;
     }
 
     function initialize() public initializer {
@@ -58,6 +73,20 @@ contract WeederToken is
         __UUPSUpgradeable_init();
     }
 
+    function setMarket(address _newMarket)
+        external
+        override
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        emit MarketChanged({
+            current: _newMarket,
+            previous: _market,
+            sender: _msgSender()
+        });
+
+        _market = _newMarket;
+    }
+
     function pause() public onlyRole(PAUSER_ROLE) {
         _pause();
     }
@@ -76,6 +105,9 @@ contract WeederToken is
         whenNotPaused
     {
         super._beforeTokenTransfer(_from, _to, _amount);
+
+        // Trigger accrue of all token dividends for both accounts
+        _accrueMarketDividends(_from, _to, _amount);
     }
 
     function _afterTokenTransfer(
@@ -108,4 +140,17 @@ contract WeederToken is
         override
         onlyRole(UPGRADER_ROLE)
     {}
+
+    function _accrueMarketDividends(
+        address _first,
+        address _second,
+        uint256 _amount
+    ) private {
+        // _first and _second are not zero addresses
+        // Trigger market only if an _amount is not zero and the market is set
+        if (_amount != 0 && _market != address(0)) {
+            IMarket(_market).accrueUserDividends(_first);
+            IMarket(_market).accrueUserDividends(_second);
+        }
+    }
 }
