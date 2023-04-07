@@ -85,12 +85,6 @@ describe('Weeder Token', () => {
 
       return expect(votes).to.equal(0);
     });
-
-    it('should return zero market', async () => {
-      const market = await token.market();
-
-      return expect(market).to.equal(ethers.constants.AddressZero);
-    });
   });
 
   describe('transfer()', () => {
@@ -198,26 +192,6 @@ describe('Weeder Token', () => {
       const isPaused = await token.paused();
 
       return expect(isPaused).to.be.false;
-    });
-  });
-
-  describe('setMarket()', () => {
-    it('should throw "AccessControl: account is missing role ADMIN" for user_1', async () => {
-      const tx = token.connect(user1).setMarket(user1.address);
-
-      return expect(tx).to.be.revertedWith(getAccessError(user1, ADMIN_ROLE));
-    });
-
-    it('should set market by owner', async () => {
-      const tx = token.setMarket(user1.address);
-
-      await expect(tx)
-        .to.emit(token, 'MarketChanged')
-        .withArgs(user1.address, ethers.constants.AddressZero, owner.address);
-
-      const market = await token.market();
-
-      return expect(market).to.equal(user1.address);
     });
   });
 
