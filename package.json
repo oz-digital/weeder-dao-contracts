@@ -7,9 +7,10 @@
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test --network",
-    "verify:mumbai": "hardhat run scripts/verify-dao-contracts.ts --network",
+    "verify": "hardhat run scripts/verify-dao-contracts.ts --network",
     "deploy:erc-20-token": "hardhat run scripts/deploy-erc20-token.ts --network",
-    "deploy:weeder-token": "hardhat run scripts/deploy-weeder-token.ts --network"
+    "deploy:weeder-token": "hardhat run scripts/deploy-weeder-token.ts --network",
+    "deploy:market": "hardhat run scripts/deploy-market.ts --network"
   },
   "devDependencies": {
     "@ethersproject/abi": "5.7.0",

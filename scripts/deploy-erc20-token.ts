@@ -1,13 +1,9 @@
 import { ethers } from 'hardhat';
 import prompts from 'prompts';
 
-const main = async (name: string, symbol: string) => {
-  const ERC20Factory = await ethers.getContractFactory(
-    'ERC20PresetMinterPauser',
-  );
-  const token = await ERC20Factory.deploy(name, symbol);
-
-  await token.deployed();
+const main = async (name: string, symbol: string): Promise<void> => {
+  const factory = await ethers.getContractFactory('ERC20PresetMinterPauser');
+  const token = await factory.deploy(name, symbol).then((i) => i.deployed());
 
   console.log(`ERC20 token ${name}(${symbol}) deployed to ${token.address}`);
 };
@@ -17,7 +13,5 @@ prompts([
   { type: 'text', name: 'symbol', message: "What's token symbol?" },
 ])
   .then((r) => main(r.name, r.symbol))
-  .catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-  });
+  .then(() => console.log('ERC20 token is deployed'))
+  .catch((error) => console.error(error));
