@@ -21,7 +21,7 @@ const config: HardhatUserConfig = {
   },
   dependencyCompiler: {
     paths: [
-      '@openzeppelin/contracts/token/ERC20/presets/ERC20PresetMinterPauser.sol',
+      '@openzeppelin/contracts-upgradeable/token/ERC20/presets/ERC20PresetMinterPauserUpgradeable.sol',
     ],
   },
   defaultNetwork: 'polygon_mumbai',
