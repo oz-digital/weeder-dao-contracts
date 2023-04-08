@@ -169,7 +169,13 @@ describe('Market', () => {
 
       const stakeTx = market.stakeWeederToken(19_700_000 * 10 ** DECIMALS);
 
-      await expect(stakeTx).to.emit(market, 'WeederTokenStaked');
+      await expect(stakeTx)
+        .to.emit(weederToken, 'Transfer')
+        .withArgs(owner.address, market.address, 19_700_000 * 10 ** DECIMALS)
+        .and.to.emit(market, 'WeederTokenStaked')
+        .withArgs(owner.address, 19_700_000 * 10 ** DECIMALS)
+        .and.not.to.emit(market, 'AccountAccrueChanged')
+        .and.not.to.emit(market, 'DividendsCollected');
 
       const shares = await market.share(owner.address);
 
@@ -189,7 +195,13 @@ describe('Market', () => {
         .connect(user1)
         .stakeWeederToken(100_000 * 10 ** DECIMALS);
 
-      await expect(stakeTx).to.emit(market, 'WeederTokenStaked');
+      await expect(stakeTx)
+        .to.emit(weederToken, 'Transfer')
+        .withArgs(user1.address, market.address, 100_000 * 10 ** DECIMALS)
+        .and.to.emit(market, 'WeederTokenStaked')
+        .withArgs(user1.address, 100_000 * 10 ** DECIMALS)
+        .and.not.to.emit(market, 'AccountAccrueChanged')
+        .and.not.to.emit(market, 'DividendsCollected');
 
       const shares = await market.share(user1.address);
 
@@ -209,7 +221,13 @@ describe('Market', () => {
         .connect(user2)
         .stakeWeederToken(100_000 * 10 ** DECIMALS);
 
-      await expect(stakeTx).to.emit(market, 'WeederTokenStaked');
+      await expect(stakeTx)
+        .to.emit(weederToken, 'Transfer')
+        .withArgs(user2.address, market.address, 100_000 * 10 ** DECIMALS)
+        .to.emit(market, 'WeederTokenStaked')
+        .withArgs(user2.address, 100_000 * 10 ** DECIMALS)
+        .and.not.to.emit(market, 'AccountAccrueChanged')
+        .and.not.to.emit(market, 'DividendsCollected');
 
       const shares = await market.share(user2.address);
 
@@ -229,7 +247,13 @@ describe('Market', () => {
         .connect(user3)
         .stakeWeederToken(100_000 * 10 ** DECIMALS);
 
-      await expect(stakeTx).to.emit(market, 'WeederTokenStaked');
+      await expect(stakeTx)
+        .to.emit(weederToken, 'Transfer')
+        .withArgs(user3.address, market.address, 100_000 * 10 ** DECIMALS)
+        .to.emit(market, 'WeederTokenStaked')
+        .withArgs(user3.address, 100_000 * 10 ** DECIMALS)
+        .and.not.to.emit(market, 'AccountAccrueChanged')
+        .and.not.to.emit(market, 'DividendsCollected');
 
       const shares = await market.share(user3.address);
 
@@ -284,7 +308,11 @@ describe('Market', () => {
     });
 
     it('should mint 1000 USDT to vault', async () => {
-      await usdtToken.mint(vault.address, '1000').then((tx) => tx.wait());
+      const tx = usdtToken.mint(vault.address, '1000');
+
+      await expect(tx)
+        .to.emit(usdtToken, 'Transfer')
+        .withArgs(ethers.constants.AddressZero, vault.address, '1000');
 
       const balance = await usdtToken.balanceOf(vault.address);
 
@@ -292,10 +320,13 @@ describe('Market', () => {
     });
 
     it('should allow 1000 USDT transfer for market', async () => {
-      await usdtToken
+      const tx = await usdtToken
         .connect(vault)
-        .increaseAllowance(market.address, '1000')
-        .then((tx) => tx.wait());
+        .increaseAllowance(market.address, '1000');
+
+      await expect(tx)
+        .to.emit(usdtToken, 'Approval')
+        .withArgs(vault.address, market.address, '1000');
 
       const allowance = await usdtToken.allowance(
         vault.address,
@@ -356,7 +387,7 @@ describe('Market', () => {
   });
 
   describe('collect dividends', () => {
-    it('should calculate earned USDT dividends', async () => {
+    it('should calculate owner earned USDT dividends', async () => {
       const dividends = await market.availableTokenDividends(
         owner.address,
         usdtToken.address,
@@ -370,7 +401,9 @@ describe('Market', () => {
 
       await expect(tx)
         .to.emit(market, 'AccountAccrueChanged')
-        .withArgs(user1.address, usdtToken.address, '500000', owner.address);
+        .withArgs(user1.address, usdtToken.address, '500000', owner.address)
+        .and.to.emit(market, 'DividendsCollected')
+        .withArgs('5', usdtToken.address, user1.address, owner.address);
 
       const accrue = await market.currentAccountAccrue(
         user1.address,
@@ -385,8 +418,16 @@ describe('Market', () => {
 
   describe('create and complete order 2', () => {
     it('should add order 2 for 1000 USD', async () => {
-      const tx = await market.createOrder('2', usdtToken.address, '1000');
-      await tx.wait();
+      const tx = market.createOrder('2', usdtToken.address, '1000');
+
+      await expect(tx)
+        .to.emit(market, 'OrderChanged')
+        .withArgs(
+          '2',
+          [usdtToken.address, 0, '1000', OrderStatus.CREATED],
+          owner.address,
+        );
+
       const order = await market.order('2');
 
       expect(order.token).to.equal(usdtToken.address);
@@ -396,16 +437,23 @@ describe('Market', () => {
     });
 
     it('should mint 1000 USDT to vault', async () => {
-      await usdtToken.mint(vault.address, '1000').then((tx) => tx.wait());
+      const tx = usdtToken.mint(vault.address, '1000');
+
+      await expect(tx)
+        .to.emit(usdtToken, 'Transfer')
+        .withArgs(ethers.constants.AddressZero, vault.address, '1000');
 
       return expect(await usdtToken.balanceOf(vault.address)).to.equal('1000');
     });
 
     it('should allow 1000 USDT transfer for market', async () => {
-      await usdtToken
+      const tx = usdtToken
         .connect(vault)
-        .increaseAllowance(market.address, '1000')
-        .then((tx) => tx.wait());
+        .increaseAllowance(market.address, '1000');
+
+      await expect(tx)
+        .to.emit(usdtToken, 'Approval')
+        .withArgs(vault.address, market.address, '1000');
 
       const allowance = await usdtToken.allowance(
         vault.address,
@@ -416,9 +464,17 @@ describe('Market', () => {
     });
 
     it('should complete order 2', async () => {
-      const tx = await market.completeOrder('2', '1000');
+      const tx = market.completeOrder('2', '1000');
 
-      await tx.wait();
+      await expect(tx)
+        .to.emit(market, 'OrderChanged')
+        .withArgs(
+          '2',
+          [usdtToken.address, '1000', '1000', OrderStatus.COMPLETED],
+          owner.address,
+        )
+        .and.to.emit(market, 'MarketAccrueChanged')
+        .withArgs(usdtToken.address, '1000000', owner.address);
 
       const accrue = await market.currentMarketAccrue(usdtToken.address);
 
@@ -430,7 +486,7 @@ describe('Market', () => {
   });
 
   describe('collect all dividends', () => {
-    it('should calculate user 1 earned USDT dividends', async () => {
+    it('should calculate user_1 earned USDT dividends', async () => {
       const dividends = await market.availableTokenDividends(
         user1.address,
         usdtToken.address,
@@ -439,13 +495,14 @@ describe('Market', () => {
       return expect(dividends).to.equal('5');
     });
 
-    it('should collect user 1 USDT dividends', async () => {
-      const tx = await market.accrueTokenDividends(
-        user1.address,
-        usdtToken.address,
-      );
+    it('should collect user_1 USDT dividends', async () => {
+      const tx = market.accrueTokenDividends(user1.address, usdtToken.address);
 
-      await tx.wait();
+      await expect(tx)
+        .to.emit(market, 'AccountAccrueChanged')
+        .withArgs(user1.address, usdtToken.address, '1000000', owner.address)
+        .and.to.emit(market, 'DividendsCollected')
+        .withArgs('5', usdtToken.address, user1.address, owner.address);
 
       const accrue = await market.currentAccountAccrue(
         user1.address,
@@ -457,7 +514,7 @@ describe('Market', () => {
       return expect(accrue).to.equal('1000000');
     });
 
-    it('should calculate user 2 earned USDT dividends', async () => {
+    it('should calculate user_2 earned USDT dividends', async () => {
       const dividends = await market.availableTokenDividends(
         user2.address,
         usdtToken.address,
@@ -466,24 +523,26 @@ describe('Market', () => {
       return expect(dividends).to.equal('10');
     });
 
-    it('should collect user 2 USDT dividends', async () => {
+    it('should collect user_2 USDT dividends', async () => {
       const tx = market.accrueTokenDividends(user2.address, usdtToken.address);
 
       await expect(tx)
         .to.emit(market, 'AccountAccrueChanged')
-        .withArgs(user2.address, usdtToken.address, '1000000', owner.address);
+        .withArgs(user2.address, usdtToken.address, '1000000', owner.address)
+        .and.to.emit(market, 'DividendsCollected')
+        .withArgs('10', usdtToken.address, user2.address, owner.address);
 
       const accrue = await market.currentAccountAccrue(
         user2.address,
         usdtToken.address,
       );
 
-      expect(await usdtToken.balanceOf(user1.address)).to.equal('10');
+      expect(await usdtToken.balanceOf(user2.address)).to.equal('10');
       expect(await usdtToken.balanceOf(market.address)).to.equal('1980');
       return expect(accrue).to.equal('1000000');
     });
 
-    it('should calculate user 3 earned USDT dividends', async () => {
+    it('should calculate user_3 earned USDT dividends', async () => {
       const dividends = await market.availableTokenDividends(
         user3.address,
         usdtToken.address,
@@ -492,19 +551,21 @@ describe('Market', () => {
       return expect(dividends).to.equal('10');
     });
 
-    it('should collect user 3 USDT dividends', async () => {
+    it('should collect user_3 USDT dividends', async () => {
       const tx = market.accrueTokenDividends(user3.address, usdtToken.address);
 
       await expect(tx)
         .to.emit(market, 'AccountAccrueChanged')
-        .withArgs(user3.address, usdtToken.address, '1000000', owner.address);
+        .withArgs(user3.address, usdtToken.address, '1000000', owner.address)
+        .and.to.emit(market, 'DividendsCollected')
+        .withArgs('10', usdtToken.address, user3.address, owner.address);
 
       const accrue = await market.currentAccountAccrue(
         user3.address,
         usdtToken.address,
       );
 
-      expect(await usdtToken.balanceOf(user1.address)).to.equal('10');
+      expect(await usdtToken.balanceOf(user3.address)).to.equal('10');
       expect(await usdtToken.balanceOf(market.address)).to.equal('1970');
       return expect(accrue).to.equal('1000000');
     });
@@ -514,25 +575,32 @@ describe('Market', () => {
     it('should transfer 100k weeder tokens from owner to user 1', async () => {
       expect(await usdtToken.balanceOf(owner.address)).to.equal('0');
 
-      const tx = weederToken.transfer(user1.address, 100_000 * 10 ** DECIMALS);
+      const tx = market.redeemWeederToken(100_000 * 10 ** DECIMALS);
 
       await expect(tx)
         .to.emit(market, 'AccountAccrueChanged')
-        .withArgs(owner.address, usdtToken.address, weederToken.address, [
-          '2000',
-        ])
-        .and.to.emit(market, 'AccountAccrueChanged')
-        .withArgs(user1.address, usdtToken.address, weederToken.address, [
-          '2000',
-        ]);
+        .withArgs(owner.address, usdtToken.address, '1000000', owner.address)
+        .and.to.emit(market, 'DividendsCollected')
+        .withArgs('1970', usdtToken.address, owner.address, owner.address)
+        .and.to.emit(market, 'WeederTokenRedeemed')
+        .withArgs(owner.address, 100_000 * 10 ** DECIMALS);
+
+      const txTransfer = weederToken.transfer(
+        user1.address,
+        100_000 * 10 ** DECIMALS,
+      );
+
+      await expect(txTransfer)
+        .to.emit(weederToken, 'Transfer')
+        .withArgs(owner.address, user1.address, 100_000 * 10 ** DECIMALS);
 
       const ownerWeederBalance = await weederToken.balanceOf(owner.address);
       const user1WeederBalance = await weederToken.balanceOf(user1.address);
       const ownerUsdtBalance = await usdtToken.balanceOf(owner.address);
       const user1UsdtBalance = await usdtToken.balanceOf(user1.address);
 
-      expect(ownerWeederBalance).to.equal(19_600_000 * 10 ** DECIMALS);
-      expect(user1WeederBalance).to.equal(200_000 * 10 ** DECIMALS);
+      expect(ownerWeederBalance).to.equal(0);
+      expect(user1WeederBalance).to.equal(100_000 * 10 ** DECIMALS);
       expect(ownerUsdtBalance).to.equal(1970);
       return expect(user1UsdtBalance).to.equal(10);
     });
