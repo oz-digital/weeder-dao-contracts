@@ -23,20 +23,7 @@ abstract contract MarketDividend is MarketState, IMarketDividend {
         override
         whenNotPaused
     {
-        for (uint256 i = 0; i < _availableTokens.length; i++) {
-            address token = _availableTokens[i];
-
-            uint256 collected = _accrueTokenDividends(_account, token);
-
-            if (collected > 0) {
-                emit DividendsCollected({
-                    amount: collected,
-                    token: token,
-                    recipient: _account,
-                    sender: _msgSender()
-                });
-            }
-        }
+        _accrueAccountDividends(_account);
     }
 
     function accrueTokenDividends(
