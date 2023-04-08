@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity 0.8.18;
 
 library OrderStatus {
-    uint8 constant EMPTY = 0;
-    uint8 constant CREATED = 1;
-    uint8 constant CANCELED = 2;
-    uint8 constant COMPLETED = 3;
+    bytes32 constant EMPTY = 0x00;
+    bytes32 constant CREATED = keccak256("ORDER_STATUS_CREATED");
+    bytes32 constant CANCELED = keccak256("ORDER_STATUS_CANCELED");
+    bytes32 constant COMPLETED = keccak256("ORDER_STATUS_COMPLETED");
 }
